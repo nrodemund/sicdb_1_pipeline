@@ -40,26 +40,30 @@ async def _run_execute_async(config: AppConfig) -> int:
     source_db = config.database.source_db
     active_action: str | None = None
 
-    async with connect_database_async(config, target_db) as conn:
-        await conn.execute(ETL_VALUES_TABLE_SQL)
-        await conn.commit()
+    async with (
+        connect_database_async(config, target_db) as target_conn,
+        connect_database_async(config, source_db) as source_conn,
+        ):
+        await target_conn.execute(ETL_VALUES_TABLE_SQL)
+        await target_conn.commit()
 
-        status = EtlStatusStore(conn)
+        status = EtlStatusStore(target_conn)
         await status.load()
 
         try:
             await progress.info("Running pre-execution checks.")
-            await unittest_preexecution.run(conn)
+            await unittest_preexecution.run(target_conn)
             await progress.success("Pre-execution checks passed.")
-            shared = SharedObjects(conn, config.mapping_file_source, progress)
+            shared = SharedObjects(source_conn, config.mapping_file_source, progress)
             await shared.load_mapping_file()
+            await shared.load_cases()
             await progress.success("Shared data loaded successfully.")    
 
             for action in PIPELINE_ACTIONS:
                 active_action = action.name
                 await progress.start_action(action.name)
                 await status.mark_action_started(action.name)
-                await action.execute(conn, source_db, target_db, status, progress)
+                await action.execute(source_conn, target_conn, shared, status, progress)
                 await status.mark_action_finished(action.name)
                 await progress.finish_action(action.name)
                 active_action = None
