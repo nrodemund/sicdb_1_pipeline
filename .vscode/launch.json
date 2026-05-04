@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "sicdb-pipeline: check",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sicdb_1_pipeline",
+      "cwd": "${workspaceFolder}",
+      "args": ["--config", "${workspaceFolder}/config.json", "check"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "sicdb-pipeline: init",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sicdb_1_pipeline",
+      "cwd": "${workspaceFolder}",
+      "args": ["--config", "${workspaceFolder}/config.json", "init"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "sicdb-pipeline: init -reset",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sicdb_1_pipeline",
+      "cwd": "${workspaceFolder}",
+      "args": ["--config", "${workspaceFolder}/config.json", "init", "-reset"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "sicdb-pipeline: execute",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sicdb_1_pipeline",
+      "cwd": "${workspaceFolder}",
+      "args": ["--config", "${workspaceFolder}/config.json", "execute"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  ]
+}

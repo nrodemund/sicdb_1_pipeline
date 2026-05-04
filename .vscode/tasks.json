@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install editable package",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m pip install -e .",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run check",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m sicdb_1_pipeline --config config.json check",
+      "dependsOn": "Install editable package",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run init",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m sicdb_1_pipeline --config config.json init",
+      "dependsOn": "Install editable package",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run init reset",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m sicdb_1_pipeline --config config.json init -reset",
+      "dependsOn": "Install editable package",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run execute",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m sicdb_1_pipeline --config config.json execute",
+      "dependsOn": "Install editable package",
+      "problemMatcher": []
+    }
+  ]
+}

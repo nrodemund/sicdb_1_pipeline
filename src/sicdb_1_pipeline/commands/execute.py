@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+import asyncio
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+
+from psycopg import AsyncConnection
+
+from sicdb_1_pipeline.config import AppConfig
+from sicdb_1_pipeline.db.connection import connect_database_async
+from sicdb_1_pipeline.db.schema import ETL_VALUES_TABLE_SQL
+from sicdb_1_pipeline.pipeline import person
+from sicdb_1_pipeline.runtime.progress import CliProgressReporter
+from sicdb_1_pipeline.runtime.status import EtlStatusStore
+from sicdb_1_pipeline.unittests import unittest_preexecution
+from sicdb_1_pipeline.shared.shared import SharedObjects
+
+PipelineActionFn = Callable[[AsyncConnection, str, str, EtlStatusStore, CliProgressReporter], Awaitable[None]]
+
+
+@dataclass(frozen=True)
+class PipelineAction:
+    name: str
+    execute: PipelineActionFn
+
+
+PIPELINE_ACTIONS: tuple[PipelineAction, ...] = (
+    PipelineAction(name="person", execute=person.exec),
+)
+
+
+def run_execute(config: AppConfig) -> int:
+    """Start or continue the ETL pipeline through the async execution pathway."""
+    return asyncio.run(_run_execute_async(config))
+
+
+async def _run_execute_async(config: AppConfig) -> int:
+    progress = CliProgressReporter()
+    target_db = config.database.default_name
+    source_db = config.database.source_db
+    active_action: str | None = None
+
+    async with connect_database_async(config, target_db) as conn:
+        await conn.execute(ETL_VALUES_TABLE_SQL)
+        await conn.commit()
+
+        status = EtlStatusStore(conn)
+        await status.load()
+
+        try:
+            await progress.info("Running pre-execution checks.")
+            await unittest_preexecution.run(conn)
+            await progress.success("Pre-execution checks passed.")
+            shared = SharedObjects(conn, config.mapping_file_source, progress)
+            await shared.load_mapping_file()
+            await progress.success("Shared data loaded successfully.")    
+
+            for action in PIPELINE_ACTIONS:
+                active_action = action.name
+                await progress.start_action(action.name)
+                await status.mark_action_started(action.name)
+                await action.execute(conn, source_db, target_db, status, progress)
+                await status.mark_action_finished(action.name)
+                await progress.finish_action(action.name)
+                active_action = None
+
+            await status.mark_finished()
+            await progress.success("ETL pipeline finished successfully.")
+            return 0
+        except Exception as exc:
+            await progress.stop_heartbeat()
+            await status.mark_failed(active_action, exc)
+            await progress.error("ETL pipeline failed.", error=exc)
+            return 1

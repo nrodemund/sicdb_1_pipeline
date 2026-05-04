@@ -1,0 +1,15 @@
+{
+  "database": {
+    "source_db": "sicdb_import_test",
+    "default_name": "sicdb_1",
+    "maintenance_database": "postgres",
+    "user": "postgres",
+    "password": "postgres",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "sslmode": "disable"
+  },
+  "ddl_folder": "ddl",
+  "mapping_file_source" : "mapping/mapping_sicdb.csv"
+
+}
