@@ -39,6 +39,7 @@ class CliProgressReporter:
         self._progress_rendered_lines = 0
         self._progress_animation_task: asyncio.Task[None] | None = None
         self._progress_animation_frame = 0
+        self._progress_started_at: datetime | None = None
         self._output_lock = asyncio.Lock()
         self._use_colors = sys.stdout.isatty() if use_colors is None else use_colors
 
@@ -74,6 +75,7 @@ class CliProgressReporter:
             }
             self._progress_state.update(updates)
             self._normalise_progress_state()
+            self._progress_started_at = datetime.now(timezone.utc)
             self._sync_progress_animation_locked()
             self._render_progress_locked()
 
@@ -92,8 +94,14 @@ class CliProgressReporter:
                     "progress_max": 100,
                     "detail": "",
                 }
+                self._progress_started_at = datetime.now(timezone.utc)
+
             self._progress_state.update(updates)
             self._normalise_progress_state()
+
+            if self._progress_started_at is None:
+                self._progress_started_at = datetime.now(timezone.utc)
+
             self._sync_progress_animation_locked()
             self._render_progress_locked()
 
@@ -102,6 +110,7 @@ class CliProgressReporter:
         async with self._output_lock:
             self._clear_progress_locked()
             self._progress_state = None
+            self._progress_started_at = None
             self._sync_progress_animation_locked()
 
     async def start_action(self, action_name: str) -> None:
@@ -130,7 +139,8 @@ class CliProgressReporter:
         while True:
             await asyncio.sleep(self.heartbeat_seconds)
             if self._current_action:
-                await self.info(f"Still running action: {self._current_action}")
+                #await self.info(f"Still running action: {self._current_action}")
+                pass # not needed now
 
     async def _animate_progress(self) -> None:
         while True:
@@ -173,11 +183,14 @@ class CliProgressReporter:
     def _normalise_progress_state(self) -> None:
         if self._progress_state is None:
             return
+
         progress_max = self._coerce_int(self._progress_state.get("progress_max"), default=100)
         progress_max = max(progress_max, 1)
+
         progress = self._coerce_int(self._progress_state.get("progress"), default=0)
         if progress != -1:
             progress = max(0, min(progress, progress_max))
+
         self._progress_state["progress"] = progress
         self._progress_state["progress_max"] = progress_max
 
@@ -188,20 +201,25 @@ class CliProgressReporter:
     def _render_progress_locked(self) -> None:
         if self._progress_state is None:
             return
+
         self._clear_progress_locked()
 
         state = self._progress_state
         progress = int(state["progress"])
         progress_max = int(state["progress_max"])
+
         if progress == -1:
             percent_text = "working"
             progress_text = f"—/{progress_max}"
             bar = self._indeterminate_progress_bar()
+            rate_eta_suffix = ""
         else:
             percent = (progress / progress_max) * 100
             percent_text = f"{percent:.1f}%"
             progress_text = f"{progress}/{progress_max}"
             bar = self._progress_bar(progress, progress_max)
+            rate_eta_suffix = self._progress_rate_eta_suffix(progress, progress_max)
+
         overall = str(state.get("overall_progress", "")).strip()
 
         title = self._bold(str(state.get("title") or "Working"))
@@ -212,7 +230,7 @@ class CliProgressReporter:
         lines = [
             f"{self._cyan('╭─')} {title} {module}" + (f" {self._dim('overall')} {overall}" if overall else ""),
             f"{self._cyan('│')} {self._dim(description)}",
-            f"{self._cyan('│')} {bar} {self._bold(progress_text)} {self._dim(f'({percent_text})')}",
+            f"{self._cyan('│')} {bar} {self._bold(progress_text)} {self._dim(f'({percent_text}{rate_eta_suffix})')}",
             f"{self._cyan('╰─')} {detail}",
         ]
 
@@ -223,11 +241,14 @@ class CliProgressReporter:
     def _clear_progress_locked(self) -> None:
         if self._progress_rendered_lines <= 0:
             return
+
         if not self._use_colors:
             self._progress_rendered_lines = 0
             return
+
         for _ in range(self._progress_rendered_lines):
             sys.stdout.write(self._CURSOR_UP + "\r" + self._CLEAR_LINE)
+
         sys.stdout.flush()
         self._progress_rendered_lines = 0
 
@@ -239,17 +260,68 @@ class CliProgressReporter:
     def _indeterminate_progress_bar(self, width: int = 28, block_width: int = 7) -> str:
         span = max(width - block_width, 1)
         position = self._progress_animation_frame % (span * 2)
+
         if position > span:
             position = span * 2 - position
+
         before = position
         after = width - block_width - before
+
         return f"{self._dim('░' * before)}{self._green('█' * block_width)}{self._dim('░' * after)}"
+
+    def _progress_rate_eta_suffix(self, progress: int, progress_max: int) -> str:
+        if progress <= 0 or self._progress_started_at is None:
+            return ""
+
+        elapsed_seconds = (datetime.now(timezone.utc) - self._progress_started_at).total_seconds()
+        if elapsed_seconds <= 0:
+            return ""
+
+        items_per_second = progress / elapsed_seconds
+        if items_per_second <= 0:
+            return ""
+
+        remaining_items = max(progress_max - progress, 0)
+        eta_seconds = remaining_items / items_per_second
+
+        return f", {self._format_rate(items_per_second)}, ETA {self._format_duration(eta_seconds)}"
+
+    @staticmethod
+    def _format_rate(items_per_second: float) -> str:
+        if items_per_second >= 1:
+            return f"{items_per_second:.1f}/s"
+
+        items_per_minute = items_per_second * 60
+        if items_per_minute >= 1:
+            return f"{items_per_minute:.1f}/min"
+
+        return f"{items_per_second * 3600:.1f}/h"
+
+    @staticmethod
+    def _format_duration(seconds: float) -> str:
+        seconds = max(0, int(round(seconds)))
+
+        if seconds < 60:
+            return f"{seconds}s"
+
+        minutes, seconds = divmod(seconds, 60)
+        if minutes < 60:
+            return f"{minutes}m {seconds}s"
+
+        hours, minutes = divmod(minutes, 60)
+        if hours < 24:
+            return f"{hours}h {minutes}m"
+
+        days, hours = divmod(hours, 24)
+        return f"{days}d {hours}h"
 
     def _sync_progress_animation_locked(self) -> None:
         should_animate = self._progress_state is not None and self._progress_state.get("progress") == -1
+
         if should_animate and self._progress_animation_task is None:
             self._progress_animation_task = asyncio.create_task(self._animate_progress())
             return
+
         if not should_animate and self._progress_animation_task is not None:
             self._progress_animation_task.cancel()
             self._progress_animation_task = None

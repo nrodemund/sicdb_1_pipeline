@@ -8,6 +8,8 @@ from sicdb_1_pipeline.runtime.status import EtlStatusStore
 from sicdb_1_pipeline.shared.shared import SharedObjects
 from sicdb_1_pipeline.db.util import upsert_row
 
+MODULE_VERSION = "0.1.0"
+
 async def exec(
     source_db: AsyncConnection,
     target_db: AsyncConnection,
@@ -16,15 +18,17 @@ async def exec(
     progress: CliProgressReporter,
 ) -> None:
     """Populate the target person table from source_db.
-
-    Implementation intentionally left empty until the person ETL mapping is defined.
     """
     
+    action_status = await status.get_action_status("person")
+    if MODULE_VERSION != action_status.get("version"):
+        action_status["progress"] = 0
+
     cases_df =shared.cases_df
     await progress.init_progress(
-        title="Importing people",
+        title="Processing person table",
         module="person",
-        description="Reading source rows",
+        description="processing...",
         overall_progress="...",
         progress=0,
         progress_max=cases_df.shape[0],
@@ -32,10 +36,19 @@ async def exec(
     )
 
     for index, row in cases_df.iterrows():
-        if index % 100 == 0:
+        if index < action_status.get("progress", 0):
+            continue
+
+        if index % 200 == 0:
             await progress.update_progress(
                 progress=index + 1,
                 detail=f"Processing case {row['CaseID']}"
+            )
+            await status.update_action(
+                name="person",
+                progress=index,
+                version=MODULE_VERSION,
+                completed=False
             )
 
         omop_row = {
@@ -49,6 +62,12 @@ async def exec(
         }
         await upsert_row(target_db, "person", omop_row)
         
-    
+    await target_db.commit()
+    await status.update_action(
+        name="person",
+        progress=cases_df.shape[0],
+        version=MODULE_VERSION,
+        completed=True
+    )
     await progress.end_progress()
     await progress.info("Table person updated.", source_db=source_db, target_db=target_db)

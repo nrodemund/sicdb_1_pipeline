@@ -35,6 +35,13 @@
       "command": "${command:python.interpreterPath} -m sicdb_1_pipeline --config config.json execute",
       "dependsOn": "Install editable package",
       "problemMatcher": []
+    },
+    {
+      "label": "Run execute profile",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m cProfile -o profile_execute.prof -s cumulative -m sicdb_1_pipeline --config config.json execute",
+      "dependsOn": "Install editable package",
+      "problemMatcher": []
     }
   ]
 }

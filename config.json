@@ -1,6 +1,6 @@
 {
   "database": {
-    "source_db": "sicdb_import_test",
+    "source_db": "sicdb_import",
     "default_name": "sicdb_1",
     "maintenance_database": "postgres",
     "user": "postgres",

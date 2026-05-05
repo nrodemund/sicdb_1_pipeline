@@ -7,7 +7,11 @@
       "request": "launch",
       "module": "sicdb_1_pipeline",
       "cwd": "${workspaceFolder}",
-      "args": ["--config", "${workspaceFolder}/config.json", "check"],
+      "args": [
+        "--config",
+        "${workspaceFolder}/config.json",
+        "check"
+      ],
       "console": "integratedTerminal",
       "justMyCode": true,
       "env": {
@@ -20,7 +24,11 @@
       "request": "launch",
       "module": "sicdb_1_pipeline",
       "cwd": "${workspaceFolder}",
-      "args": ["--config", "${workspaceFolder}/config.json", "init"],
+      "args": [
+        "--config",
+        "${workspaceFolder}/config.json",
+        "init"
+      ],
       "console": "integratedTerminal",
       "justMyCode": true,
       "env": {
@@ -33,7 +41,12 @@
       "request": "launch",
       "module": "sicdb_1_pipeline",
       "cwd": "${workspaceFolder}",
-      "args": ["--config", "${workspaceFolder}/config.json", "init", "-reset"],
+      "args": [
+        "--config",
+        "${workspaceFolder}/config.json",
+        "init",
+        "-reset"
+      ],
       "console": "integratedTerminal",
       "justMyCode": true,
       "env": {
@@ -41,14 +54,24 @@
       }
     },
     {
-      "name": "sicdb-pipeline: execute",
+      "name": "sicdb-pipeline: execute profile",
       "type": "debugpy",
       "request": "launch",
-      "module": "sicdb_1_pipeline",
+      "module": "cProfile",
       "cwd": "${workspaceFolder}",
-      "args": ["--config", "${workspaceFolder}/config.json", "execute"],
+      "args": [
+        "-o",
+        "${workspaceFolder}/profile_execute.prof",
+        "-s",
+        "cumulative",
+        "-m",
+        "sicdb_1_pipeline",
+        "--config",
+        "${workspaceFolder}/config.json",
+        "execute"
+      ],
       "console": "integratedTerminal",
-      "justMyCode": true,
+      "justMyCode": false,
       "env": {
         "PYTHONUNBUFFERED": "1"
       }
