@@ -12,6 +12,7 @@ class SharedObjects:
 
         self.source_conn = source_conn
         self.mapping_file_source = mapping_file_source
+        self.d_references_dict={}
         self.progress = progress
         self.mapping_df = None
         self.tf_cache = {}
@@ -23,11 +24,16 @@ class SharedObjects:
         # two minor changes, in source_concept_id remove drug. and signal. from each value, old version not compatible
         self.mapping_df['source_concept_id'] = self.mapping_df['source_concept_id'].str.replace('drug.', '', regex=False)
         self.mapping_df['source_concept_id'] = self.mapping_df['source_concept_id'].str.replace('signal.', '', regex=False)
-        # print metrics and head
-        print(f"Loaded mapping file with {self.mapping_df.shape[0]} rows and {self.mapping_df.shape[1]} columns.")
-        print(f"Columns: {self.mapping_df.columns.tolist()}")
-        print("First 5 rows:")
-        print(self.mapping_df.head())
+    async def load_d_references(self):
+        # get path from self.mapping_file_source
+        folder = self.mapping_file_source.parent
+        d_references_file = folder / "d_references.csv"
+        if not d_references_file.exists():  
+            raise FileNotFoundError(f"d_references file not found at {d_references_file}")
+        d_references_df = pd.read_csv(d_references_file)
+
+        self.d_references_dict = d_references_df.set_index("ReferenceGlobalID").to_dict(orient="index")
+
     async def load_cases(self):
         # Load cases from source_db and store in self.cases_df
         query = "SELECT * FROM cases"

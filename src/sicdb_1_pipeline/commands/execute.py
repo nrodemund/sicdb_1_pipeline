@@ -60,6 +60,7 @@ async def _run_execute_async(config: AppConfig) -> int:
             await progress.success("Pre-execution checks passed.")
             shared = SharedObjects(source_conn, config.mapping_file_source, progress)
             await shared.load_mapping_file()
+            await shared.load_d_references()
             await shared.load_cases()
             await progress.success("Shared data loaded successfully.")    
 

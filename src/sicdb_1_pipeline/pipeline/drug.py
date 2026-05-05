@@ -8,7 +8,7 @@ from sicdb_1_pipeline.runtime.status import EtlStatusStore
 from sicdb_1_pipeline.shared.shared import SharedObjects
 from sicdb_1_pipeline.db.util import upsert_row, upsert_rows
 
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 
 async def exec(
     source_db: AsyncConnection,
@@ -83,6 +83,10 @@ async def exec(
                     "drug_type_concept_id":32818, # ehr admission record
                     "route_concept_id": 0,
                     "quantity": transform_fn(drug_row["Amount"]),
+                    "drug_source_value": str(drug_row["Amount"]) + " " + shared.d_references_dict.get(drug_row["DrugID"], {}).get("ReferenceUnit", ""),
+                    "drug_source_concept_id": drug_row["DrugID"],
+
+                    
                 }
                 #await upsert_row(target_db, "drug_exposure", omop_row)
                 case_batch_insert.append(omop_row)
