@@ -74,6 +74,9 @@ async def upsert_row(
             await cur.execute(query, list(row.values()))
             return await cur.fetchone()
     
+
+
+# Note: for a unknown reason this "long-query-string" method is faster than executemany. TODO: investigate further and consider replacing upsert_row with a batch version that uses this method.
 async def upsert_rows(
     conn: AsyncConnection,
     table_name: str,

@@ -35,15 +35,18 @@ async def exec(
         detail="Opening source cursor",
     )
     count_actions=0
+    count_inserted=0
+    case_batch_insert = []
     for index, row in cases_df.iterrows():
-        case_batch_insert = []
+        
         if index < action_status.get("progress", 0):
             continue
 
         if index % 25 == 0:
            
-            await progress.update_progress(progress=index + 1,detail=f"Processing case {row['CaseID']} - Overall entries inserted: {count_actions:,}")
+            await progress.update_progress(progress=index + 1,detail=f"Processing case {row['CaseID']} - Overall entries upserted: {count_inserted:,}")
             await status.update_action(name="drug",progress=index,version=MODULE_VERSION,completed=False)
+           # if index > 500: sys.exit() profiling
         query = f"""SELECT * FROM medication WHERE "CaseID" = {row['CaseID']}
         """
         async with source_db.cursor() as cur:
@@ -85,11 +88,13 @@ async def exec(
                 case_batch_insert.append(omop_row)
                 count_actions+=1
                 index +=1
-        if len(case_batch_insert) > 0:
+        if len(case_batch_insert) > 25000: 
             await upsert_rows(target_db, "drug_exposure", case_batch_insert)
+            count_inserted += len(case_batch_insert)
+            case_batch_insert=[]
                 
 
-        
+    await upsert_rows(target_db, "drug_exposure", case_batch_insert)  
     await target_db.commit()
     await status.update_action(name="drug",progress=cases_df.shape[0],version=MODULE_VERSION,completed=True)
     await progress.end_progress()

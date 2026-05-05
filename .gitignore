@@ -16,7 +16,6 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
-
 # Local configuration / runtime artifacts
 *.log
 .local/
@@ -35,3 +34,4 @@ Thumbs.db
 
 
 *.zip
+*.prof
